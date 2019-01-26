@@ -1,45 +1,59 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
-	"log"
 	"syscall"
-    "encoding/json"
-	"github.com/dghubble/oauth1"
+
 	"github.com/dghubble/go-twitter/twitter"
+	"github.com/dghubble/oauth1"
 )
 
-type Configuration struct {
-    api_key string
-    api_secret string
-    access_token_key string
-    access_token_secret string
+// Config : config struct for twitter keys
+type Config struct {
+	APIKEY            string `json:"apiKey"`
+	APISECRET         string `json:"apiSecret"`
+	ACCESSTOKENKEY    string `json:"accessTokenKey"`
+	ACCESSTOKENSECRET string `json:"accessTokenSecret"`
+}
+
+// LoadConfiguration : loads config from json file
+func LoadConfiguration(file string) Config {
+	var config Config
+	configFile, errFile := os.Open(file)
+	defer configFile.Close()
+	if errFile != nil {
+		fmt.Println("Error opening file", errFile.Error())
+	}
+	jsonParser := json.NewDecoder(configFile)
+	errParse := jsonParser.Decode(&config)
+	if errParse != nil {
+		fmt.Println("Error opening file", errParse.Error())
+	}
+	return config
 }
 
 func main() {
-	// Load config variables
-	file, _ := os.Open("conf.json")
-	defer file.Close()
-	decoder := json.NewDecoder(file)
-	configuration := Configuration{}
-	err := decoder.Decode(&configuration)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
+	configuration := LoadConfiguration("conf.json")
 
-	config := oauth1.NewConfig(configuration.api_key, configuration.api_secret)
-	token := oauth1.NewToken(configuration.access_token_key, configuration.access_token_secret)
+	config := oauth1.NewConfig(configuration.APIKEY, configuration.APISECRET)
+	token := oauth1.NewToken(configuration.ACCESSTOKENKEY, configuration.ACCESSTOKENSECRET)
 	httpClient := config.Client(oauth1.NoContext, token)
 
 	// Twitter client
 	client := twitter.NewClient(httpClient)
 	demux := twitter.NewSwitchDemux()
 
+	tweetCount := 0
+
 	// Print tweets received from stream
 	demux.Tweet = func(tweet *twitter.Tweet) {
-		fmt.Println(tweet.Text)
+		// fmt.Println(tweet.Text)
+		fmt.Println("tweet count:", tweetCount)
+		tweetCount++
 	}
 
 	params := &twitter.StreamSampleParams{
